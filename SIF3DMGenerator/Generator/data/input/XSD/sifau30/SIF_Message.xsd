@@ -1,9 +1,9 @@
 <!--
-		SIF Implementation Specification (Australia) 1.3  Infrastructure Version: 3.0 REST v1.0
+		SIF Implementation Specification (Australia) 1.4 (August 18, 2015) Infrastructure Version: 3.x REST v2
 	-->
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:sif="http://www.sifassociation.org/au/datamodel/1.3" targetNamespace="http://www.sifassociation.org/au/datamodel/1.3" elementFormDefault="qualified">
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:sif="http://www.sifassociation.org/au/datamodel/1.4" targetNamespace="http://www.sifassociation.org/au/datamodel/1.4" elementFormDefault="qualified">
 	<xs:import namespace="http://www.w3.org/XML/1998/namespace" schemaLocation="imports/xml/xml.xsd"/>
-	<!--Version 1.3/3.0 v01a Updated May 30, 2015 for SchoolInfo ASL and StudentAttendanceTimeList NSW -->
+	<!--Version 1.4/3.x v0.1 Updated August, 2015 for ACT Project - includes Finance and Gradebook objects -->
 	<!--Infrastructure Common Elements-->
 	<!--SIF_ExtendedElements-->
 	<xs:complexType name="SIF_ExtendedElementsType">
@@ -287,7 +287,387 @@
 		</xs:sequence>
 	</xs:complexType>
 	<xs:element name="SIF_Query" type="sif:SIF_QueryType"/>
+	<!--SIF_ExtendedQuery-->
+	<xs:complexType name="SIF_ExtendedQueryType">
+		<xs:annotation>
+			<xs:documentation>
+            SIF's default query mechanism for SIF_Request, SIF_Query, has several limitations that limit its usefulness when creating reporting applications
+            that process data from a SIF zone.  SIF_Query is limited to matching only one object type per query, requiring applications to
+            manually join together results as needed for reporting and general data processing.  SIF_ExtendedQuery is designed to allow for joins on
+            object identifiers/RefIds and to allow retrieval of data in a row/column fashion similar to SQL.  Each returned column may contain hierarchical XML elements/objects.
+            Providers and Responders in a Zone may support SIF_ExtendedQuery
+            in addition to SIF_Query.  Support for SIF_ExtendedQuery can be declared in and retrieved from the Zone is various Infrastructure
+            messages and objects.
+          </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="SIF_DestinationProvider" type="xs:token" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>
+            If no SIF_DestinationId applies to the request and this element is supplied, the Requester specifies that the
+            extended query be routed to the Provider on record for the given object name.  If this element is omitted and no SIF_DestinationId
+            applies to the request, the ZIS routes the request to the Provider on record for the object name in SIF_From.
+          </xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SIF_Select">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="SIF_Element" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>
+            Indicates the element/attribute to return as a column.  Contents can be left empty to return the whole object specified in ObjectName,
+            or * can be designated to return all attributes and immediate child elements of the object specified in ObjectName, or
+            SIF_Element Syntax
+             can be specified, relative to the object specified in ObjectName.  Requested attributes
+            are to be returned as the text value of the corresponding attribute, elements as a copy of the XML element itself including attributes if they exist.
+          </xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:simpleContent>
+									<xs:extension base="xs:normalizedString">
+										<xs:attribute name="Alias" use="optional">
+											<xs:simpleType>
+												<xs:restriction base="xs:normalizedString">
+													<xs:annotation>
+														<xs:documentation>Optional caption for the column.</xs:documentation>
+													</xs:annotation>
+													<xs:maxLength value="64"/>
+												</xs:restriction>
+											</xs:simpleType>
+										</xs:attribute>
+										<xs:attribute name="ObjectName" type="sif:ObjectNameType" use="required">
+											<xs:annotation>
+												<xs:documentation>The name of the object from which to retrieve element/attributes.</xs:documentation>
+											</xs:annotation>
+										</xs:attribute>
+									</xs:extension>
+								</xs:simpleContent>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+					<xs:attribute name="Distinct" type="xs:boolean" use="required">
+						<xs:annotation>
+							<xs:documentation>
+            Specifies whether query results should return all rows (false) or just distinct ones (true).  Rows are distinct if
+            at least one column differs between them.
+          </xs:documentation>
+						</xs:annotation>
+					</xs:attribute>
+					<xs:attribute name="RowCount" use="required">
+						<xs:annotation>
+							<xs:documentation>
+            The maximum number of rows to return.  If All, return all rows, otherwise return the top rows up to the maximum
+            row count indicated.
+          </xs:documentation>
+						</xs:annotation>
+						<xs:simpleType>
+							<xs:union memberTypes="xs:positiveInteger">
+								<xs:simpleType>
+									<xs:restriction base="xs:token">
+										<xs:enumeration value="All"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:union>
+						</xs:simpleType>
+					</xs:attribute>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="SIF_From">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="SIF_Join" minOccurs="0" maxOccurs="unbounded">
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element name="SIF_JoinOn" maxOccurs="unbounded">
+										<xs:complexType>
+											<xs:sequence>
+												<xs:element name="SIF_LeftElement">
+													<xs:annotation>
+														<xs:documentation>Specifies the left-side element/attribute on which to constrain the join.  Currently only support for keys/RefIds/RefId references is required.</xs:documentation>
+													</xs:annotation>
+													<xs:complexType>
+														<xs:simpleContent>
+															<xs:extension base="xs:normalizedString">
+																<xs:attribute name="ObjectName" type="sif:ObjectNameType" use="required">
+																	<xs:annotation>
+																		<xs:documentation>Name of the object that contains the element/attribute.</xs:documentation>
+																	</xs:annotation>
+																</xs:attribute>
+															</xs:extension>
+														</xs:simpleContent>
+													</xs:complexType>
+												</xs:element>
+												<xs:element name="SIF_RightElement">
+													<xs:annotation>
+														<xs:documentation>Specifies right left-side element/attribute on which to constrain the join.  Currently only support for keys/RefIds/RefId references is required.</xs:documentation>
+													</xs:annotation>
+													<xs:complexType>
+														<xs:simpleContent>
+															<xs:extension base="xs:normalizedString">
+																<xs:attribute name="ObjectName" type="sif:ObjectNameType" use="required">
+																	<xs:annotation>
+																		<xs:documentation>Name of the object that contains the element/attribute.</xs:documentation>
+																	</xs:annotation>
+																</xs:attribute>
+															</xs:extension>
+														</xs:simpleContent>
+													</xs:complexType>
+												</xs:element>
+											</xs:sequence>
+										</xs:complexType>
+									</xs:element>
+								</xs:sequence>
+								<xs:attribute name="Type" use="required">
+									<xs:annotation>
+										<xs:documentation>Type of relational join.</xs:documentation>
+									</xs:annotation>
+									<xs:simpleType>
+										<xs:restriction base="xs:token">
+											<xs:enumeration value="Inner"/>
+											<xs:enumeration value="LeftOuter"/>
+											<xs:enumeration value="RightOuter"/>
+											<xs:enumeration value="FullOuter"/>
+										</xs:restriction>
+									</xs:simpleType>
+								</xs:attribute>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+					<xs:attribute name="ObjectName" type="sif:ObjectNameType" use="required">
+						<xs:annotation>
+							<xs:documentation>The name of the object to query.</xs:documentation>
+						</xs:annotation>
+					</xs:attribute>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="SIF_Where" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="SIF_ConditionGroup">
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element name="SIF_Conditions" maxOccurs="unbounded">
+										<xs:complexType>
+											<xs:sequence>
+												<xs:element name="SIF_Condition" maxOccurs="unbounded">
+													<xs:complexType>
+														<xs:sequence>
+															<xs:element name="SIF_Element">
+																<xs:annotation>
+																	<xs:documentation>This is the element/attribute being queried.</xs:documentation>
+																</xs:annotation>
+																<xs:complexType>
+																	<xs:simpleContent>
+																		<xs:extension base="xs:normalizedString">
+																			<xs:attribute name="ObjectName" type="sif:ObjectNameType" use="required">
+																				<xs:annotation>
+																					<xs:documentation>The name of the object containing the element/attribute.</xs:documentation>
+																				</xs:annotation>
+																			</xs:attribute>
+																		</xs:extension>
+																	</xs:simpleContent>
+																</xs:complexType>
+															</xs:element>
+															<xs:element name="SIF_Operator">
+																<xs:annotation>
+																	<xs:documentation>The comparison operator for the condition.</xs:documentation>
+																</xs:annotation>
+																<xs:simpleType>
+																	<xs:restriction base="xs:token">
+																		<xs:enumeration value="EQ">
+																			<xs:annotation>
+																				<xs:documentation>Equals</xs:documentation>
+																			</xs:annotation>
+																		</xs:enumeration>
+																		<xs:enumeration value="LT">
+																			<xs:annotation>
+																				<xs:documentation>Less Than</xs:documentation>
+																			</xs:annotation>
+																		</xs:enumeration>
+																		<xs:enumeration value="GT">
+																			<xs:annotation>
+																				<xs:documentation>Greater Than</xs:documentation>
+																			</xs:annotation>
+																		</xs:enumeration>
+																		<xs:enumeration value="LE">
+																			<xs:annotation>
+																				<xs:documentation>Less Than Or Equals</xs:documentation>
+																			</xs:annotation>
+																		</xs:enumeration>
+																		<xs:enumeration value="GE">
+																			<xs:annotation>
+																				<xs:documentation>Greater Than Or Equals</xs:documentation>
+																			</xs:annotation>
+																		</xs:enumeration>
+																		<xs:enumeration value="NE">
+																			<xs:annotation>
+																				<xs:documentation>Not Equals</xs:documentation>
+																			</xs:annotation>
+																		</xs:enumeration>
+																	</xs:restriction>
+																</xs:simpleType>
+															</xs:element>
+															<xs:element name="SIF_Value" type="xs:string">
+																<xs:annotation>
+																	<xs:documentation>SIF_Value is the data that is used to compare with the value of the element or attribute.
+          </xs:documentation>
+																</xs:annotation>
+															</xs:element>
+														</xs:sequence>
+													</xs:complexType>
+												</xs:element>
+											</xs:sequence>
+											<xs:attribute name="Type" use="required">
+												<xs:annotation>
+													<xs:documentation>
+            The boolean operator for joining conditions (SIF_Condition elements) within this element.  Note that None should be used if there
+            is only one SIF_Condition element.
+          </xs:documentation>
+												</xs:annotation>
+												<xs:simpleType>
+													<xs:restriction base="xs:token">
+														<xs:enumeration value="And"/>
+														<xs:enumeration value="Or"/>
+														<xs:enumeration value="None"/>
+													</xs:restriction>
+												</xs:simpleType>
+											</xs:attribute>
+										</xs:complexType>
+									</xs:element>
+								</xs:sequence>
+								<xs:attribute name="Type" use="required">
+									<xs:annotation>
+										<xs:documentation>
+            The Boolean operator for joining conditions (SIF_Conditions elements) within this element.  Note that None should be used if there is only one
+            SIF_Conditions element.
+          </xs:documentation>
+									</xs:annotation>
+									<xs:simpleType>
+										<xs:restriction base="xs:token">
+											<xs:enumeration value="And"/>
+											<xs:enumeration value="Or"/>
+											<xs:enumeration value="None"/>
+										</xs:restriction>
+									</xs:simpleType>
+								</xs:attribute>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="SIF_OrderBy" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="SIF_Element" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>
+            Indicates the element/attribute by which to sort.
+          </xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:simpleContent>
+									<xs:extension base="xs:normalizedString">
+										<xs:attribute name="ObjectName" type="sif:ObjectNameType" use="required">
+											<xs:annotation>
+												<xs:documentation>The name of the object containing the element/attribute.</xs:documentation>
+											</xs:annotation>
+										</xs:attribute>
+										<xs:attribute name="Ordering" use="required">
+											<xs:annotation>
+												<xs:documentation>Whether to order the element/attribute in ascending or descending order.</xs:documentation>
+											</xs:annotation>
+											<xs:simpleType>
+												<xs:restriction base="xs:token">
+													<xs:enumeration value="Ascending"/>
+													<xs:enumeration value="Descending"/>
+												</xs:restriction>
+											</xs:simpleType>
+										</xs:attribute>
+									</xs:extension>
+								</xs:simpleContent>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="SIF_ExtendedQuery" type="sif:SIF_ExtendedQueryType"/>
+	<!--SIF_ExtendedQueryResults-->
+	<xs:complexType name="SIF_ExtendedQueryResultsType">
+		<xs:annotation>
+			<xs:documentation>
+            This element provides a wrapper for data returned in response to a SIF_ExtendedQuery.  Used in SIF_Response
+            and SIF_ReportObject.
+          </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="SIF_ColumnHeaders">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="SIF_Element" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>
+            The element/attribute specified for the column in SIF_ExtendedQuery.
+          </xs:documentation>
+							</xs:annotation>
+							<xs:complexType>
+								<xs:simpleContent>
+									<xs:extension base="xs:normalizedString">
+										<xs:attribute name="ObjectName" type="sif:ObjectNameType" use="required">
+											<xs:annotation>
+												<xs:documentation>The object in which the element/attribute occurs.</xs:documentation>
+											</xs:annotation>
+										</xs:attribute>
+										<xs:attribute name="Alias" use="optional">
+											<xs:simpleType>
+												<xs:restriction base="xs:normalizedString">
+													<xs:annotation>
+														<xs:documentation>
+            The caption for the column, if specified in SIF_ExtendedQuery.
+          </xs:documentation>
+													</xs:annotation>
+													<xs:maxLength value="64"/>
+												</xs:restriction>
+											</xs:simpleType>
+										</xs:attribute>
+									</xs:extension>
+									<!--<xs:attribute ref="xsi:type" use="optional" />-->
+								</xs:simpleContent>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="SIF_Rows">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="R" minOccurs="0" maxOccurs="unbounded">
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element name="C" type="sif:SelectedContentType" maxOccurs="unbounded">
+										<xs:annotation>
+											<xs:documentation>
+            Contains the value of each column specified in SIF_ExtendedQuery/SIF_Select.
+            The order of the columns must correspond to the order of the elements as requested in SIF_ExtendedQuery.
+            Note the number of columns may be expanded from the requested columns if * is indicated
+            one or more times in the SIF_Select clause.
+          </xs:documentation>
+										</xs:annotation>
+									</xs:element>
+								</xs:sequence>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="SIF_ExtendedQueryResults" type="sif:SIF_ExtendedQueryResultsType"/>
+	<!-- Replace From Here  to Collections when re-generating 1.4-->
 	<!--Data Model Common Elements-->
+	<!--LocalId-->
 	<!--LocalId-->
 	<xs:simpleType name="LocalIdType">
 		<xs:restriction base="xs:normalizedString">
@@ -4372,7 +4752,7 @@
 			</xs:element>
 			<xs:element name="OnTimeGraduationYear" type="sif:OnTimeGraduationYearType" nillable="true" minOccurs="0">
 				<xs:annotation>
-					<xs:documentation>First projected graduation year, usually determined when student is accepted into Year 9.</xs:documentation>
+					<xs:documentation>First projected graduation year, usually determined when student is accepted into 9th grade.</xs:documentation>
 				</xs:annotation>
 			</xs:element>
 			<xs:element name="GraduationDate" type="sif:GraduationDateType" nillable="true" minOccurs="0">
@@ -4401,6 +4781,18 @@
 							<xs:annotation>
 								<xs:documentation>The current or most recent year level of the student.</xs:documentation>
 							</xs:annotation>
+						</xs:element>
+						<xs:element name="FTE" nillable="true" minOccurs="0">
+							<xs:simpleType>
+								<xs:restriction base="xs:decimal">
+									<xs:annotation>
+										<xs:documentation>Full-time equivalent numeric value of the student's course load during this enrollment, expressed in decimal form, where 1.00 represents a full-time enrollment.</xs:documentation>
+									</xs:annotation>
+									<xs:minInclusive value="0"/>
+									<xs:maxInclusive value="1"/>
+									<xs:fractionDigits value="2"/>
+								</xs:restriction>
+							</xs:simpleType>
 						</xs:element>
 						<xs:element name="Parent1Language" type="sif:AUCodeSetsAustralianStandardClassificationOfLanguagesASCLType" nillable="true" minOccurs="0">
 							<xs:annotation>
@@ -4442,19 +4834,36 @@
 								<xs:documentation>This reflects the level of Parent2’s Non-School Education.</xs:documentation>
 							</xs:annotation>
 						</xs:element>
+						<xs:element name="Parent1Sex" type="sif:AUCodeSetsSexCodeType" nillable="true" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>'Sex' is the distinction 'male' and 'female', as reported by the person known as Parent1.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="Parent2Sex" type="sif:AUCodeSetsSexCodeType" nillable="true" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>'Sex' is the distinction 'male' and 'female', as reported by the person known as Parent2.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="Parent1Relationship" type="sif:RelationshipType" nillable="true" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>Defines the relationship of the Parent1 to the student.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+						<xs:element name="Parent2Relationship" type="sif:RelationshipType" nillable="true" minOccurs="0">
+							<xs:annotation>
+								<xs:documentation>Defines the relationship of the Parent2 to the student.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
 					</xs:sequence>
 				</xs:complexType>
 			</xs:element>
+			<xs:element name="NAPRegistration" nillable="true" minOccurs="0"/>
 			<xs:element name="AcceptableUsePolicy" type="sif:AUCodeSetsYesOrNoCategoryType" nillable="true" minOccurs="0">
 				<xs:annotation>
 					<xs:documentation>Does the student have a current signed Acceptable Use Policy document for system access?</xs:documentation>
 				</xs:annotation>
 			</xs:element>
-			<xs:element name="GiftedTalented" type="sif:AUCodeSetsYesOrNoCategoryType" nillable="true" minOccurs="0">
-				<xs:annotation>
-					<xs:documentation>Is the student in Gifted/Talented programs?</xs:documentation>
-				</xs:annotation>
-			</xs:element>
+			<xs:element name="GiftedTalented" type="sif:AUCodeSetsYesOrNoCategoryType" nillable="true" minOccurs="0"/>
 			<xs:element name="EconomicDisadvantage" type="sif:AUCodeSetsYesOrNoCategoryType" nillable="true" minOccurs="0">
 				<xs:annotation>
 					<xs:documentation>Does the student meet the State criteria for classification as having an economic disadvantage?</xs:documentation>
@@ -11430,6 +11839,16 @@
 					<xs:documentation>Asset number of the equipment; may be distinct from Local Id.</xs:documentation>
 				</xs:annotation>
 			</xs:element>
+			<xs:element name="InvoiceRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The SIF RefId of the invoice for the equipment.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="PurchaseOrderRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The SIF RefId of the purchase order for the equipment.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
 			<xs:element name="EquipmentType" nillable="true" minOccurs="0">
 				<xs:annotation>
 					<xs:documentation>Type of equipment.</xs:documentation>
@@ -11482,58 +11901,969 @@
 			<xs:field xpath="@RefId"/>
 		</xs:unique>
 	</xs:element>
+	<!--Invoice-->
+	<xs:complexType name="InvoiceType">
+		<xs:annotation>
+			<xs:documentation>
+        This object contains an amount to be invoiced to an outside entity (typically a creditor or debtor). his object can include school fees. The object is also used for payments to an outside entity (using debit amounts), where those payments are not for goods and services (PurchaseOrder object): e.g. credit notes, reimbursements, rebates.     </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="InvoicedEntity" minOccurs="0">
+				<xs:complexType>
+					<xs:annotation>
+						<xs:documentation>Id of the entity being billed for this billing activity.</xs:documentation>
+					</xs:annotation>
+					<xs:simpleContent>
+						<xs:extension base="sif:IdRefTypeOrEmpty">
+							<xs:attribute name="SIF_RefObject" use="required">
+								<xs:annotation>
+									<xs:documentation>Id of the entity being billed for this billing activity.</xs:documentation>
+								</xs:annotation>
+								<xs:simpleType>
+									<xs:restriction base="xs:token">
+										<xs:enumeration value="Debtor"/>
+										<xs:enumeration value="PurchaseOrder"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:attribute>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="BillingDate" type="xs:date" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Date of the transaction.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TransactionDescription" type="xs:normalizedString" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Description of the transaction.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="BilledAmount" minOccurs="0">
+				<xs:complexType>
+					<xs:annotation>
+						<xs:documentation>Amount to be billed. Can be credit (e.g. for family credit notes, reimbursements, rebates).</xs:documentation>
+					</xs:annotation>
+					<xs:simpleContent>
+						<xs:extension base="sif:MonetaryAmountType">
+							<xs:attribute name="Type" use="required">
+								<xs:simpleType>
+									<xs:restriction base="xs:token">
+										<xs:enumeration value="Debit"/>
+										<xs:enumeration value="Credit"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:attribute>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="Ledger" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The associated ledger for this transaction</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:token">
+						<xs:enumeration value="Creditor"/>
+						<xs:enumeration value="Family"/>
+						<xs:enumeration value="Sundry"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="ChargedLocationInfoRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Id of the location billed for this billing activity.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TaxRate" type="xs:decimal" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Rate of tax included in the billed amount.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TaxType" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Tax type (e.g. G11 vs NP6)</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TaxAmount" type="sif:MonetaryAmountType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Amount of tax included in the billed amount</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="CreatedBy" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Authority or person who created the invoice</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ApprovedBy" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Authority or person who approved the invoice</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ItemDetail" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Details of items invoiced (free text)</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="DueDate" type="xs:date" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Due date for payment.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="FinancialAccountRefIdList" nillable="true" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="FinancialAccountRefId" type="sif:IdRefType" minOccurs="0" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>The chart of account codes associated with the invoice.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="AccountingPeriod" type="sif:LocalIdType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The accounting period against which the transaction is billed.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="RelatedPurchaseOrderRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>An invoice purchase order related to this invoice (e.g. an invoice raised for the delivery of goods on a purchase order).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Voluntary" type="sif:AUCodeSetsYesOrNoCategoryType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>
+        Whether the billing is voluntary (applies to some school fees).
+      </xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SIF_Metadata" type="sif:SIF_MetadataType" nillable="true" minOccurs="0"/>
+			<xs:element name="SIF_ExtendedElements" type="sif:SIF_ExtendedElementsType" nillable="true" minOccurs="0">
+				<xs:unique name="SIF_ExtendedElementsKey70">
+					<xs:selector xpath="./sif:SIF_ExtendedElement"/>
+					<xs:field xpath="@Name"/>
+				</xs:unique>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="RefId" type="sif:RefIdType" use="required">
+			<xs:annotation>
+				<xs:documentation>GUID for this transaction. The application that owns this object is responsible for generating this unique Id.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="Invoice" type="sif:InvoiceType">
+		<xs:unique name="InvoiceKey1">
+			<xs:selector xpath="."/>
+			<xs:field xpath="@RefId"/>
+		</xs:unique>
+	</xs:element>
+	<!--FinancialAccount-->
+	<xs:complexType name="FinancialAccountType">
+		<xs:annotation>
+			<xs:documentation>
+        This object communicates information about a financial account.
+      </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="SubAccountRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Identifier of a subaccount of the account. Can be used to construct a tree of nesting accounts, e.g. "Revenue" -- "Revenue-Grant" -- "Revenue-Grant-Commonwealth".</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ChargedLocationInfoRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Location associated with the account".</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="AccountNumber" type="xs:normalizedString" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Account number used for ledger.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Name" type="xs:normalizedString" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Name of the account.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Description" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Description of the account.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="FinancialClassificationRefId" type="sif:IdRefType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Financial classification of the account.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="CreationDate" type="xs:date" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Account creation date.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="CreationTime" type="xs:time" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Account creation time.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SIF_Metadata" type="sif:SIF_MetadataType" nillable="true" minOccurs="0"/>
+			<xs:element name="SIF_ExtendedElements" type="sif:SIF_ExtendedElementsType" nillable="true" minOccurs="0">
+				<xs:unique name="SIF_ExtendedElementsKey71">
+					<xs:selector xpath="./sif:SIF_ExtendedElement"/>
+					<xs:field xpath="@Name"/>
+				</xs:unique>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="RefId" type="sif:RefIdType" use="required">
+			<xs:annotation>
+				<xs:documentation>GUID that identifies this financial account.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="FinancialAccount" type="sif:FinancialAccountType">
+		<xs:unique name="FinancialAccountKey1">
+			<xs:selector xpath="."/>
+			<xs:field xpath="@RefId"/>
+		</xs:unique>
+	</xs:element>
+	<!--FinancialClassification-->
+	<xs:complexType name="FinancialClassificationType">
+		<xs:annotation>
+			<xs:documentation>
+        This object communicates financial classification information. Financial classifications are used to categorize financial accounts.
+      </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Name" type="xs:normalizedString" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Name of the financial classification.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Description" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Description of the financial classification.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ClassificationType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation/>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:token">
+						<xs:enumeration value="Asset"/>
+						<xs:enumeration value="Liability"/>
+						<xs:enumeration value="Revenue"/>
+						<xs:enumeration value="Expense"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="SIF_Metadata" type="sif:SIF_MetadataType" nillable="true" minOccurs="0"/>
+			<xs:element name="SIF_ExtendedElements" type="sif:SIF_ExtendedElementsType" nillable="true" minOccurs="0">
+				<xs:unique name="SIF_ExtendedElementsKey72">
+					<xs:selector xpath="./sif:SIF_ExtendedElement"/>
+					<xs:field xpath="@Name"/>
+				</xs:unique>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="RefId" type="sif:RefIdType" use="required">
+			<xs:annotation>
+				<xs:documentation>GUID that identifies this financial class.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="FinancialClassification" type="sif:FinancialClassificationType">
+		<xs:unique name="FinancialClassificationKey1">
+			<xs:selector xpath="."/>
+			<xs:field xpath="@RefId"/>
+		</xs:unique>
+	</xs:element>
+	<!--ChargedLocationInfo-->
+	<xs:complexType name="ChargedLocationInfoType">
+		<xs:annotation>
+			<xs:documentation>
+        ChargedLocationInfo represents a location in a school system. It can be used to associate accounts and purchase orders with particular schools or other cost centres.      </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="LocationType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Defines whether the location is a school or a non-school location.</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:token">
+						<xs:enumeration value="School"/>
+						<xs:enumeration value="NonSchool"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="SiteCategory" type="xs:normalizedString" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Specific site category.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Name" type="xs:normalizedString" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Text name of the location.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Description" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Description about the location.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="LocalId" type="sif:LocalIdType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The locally-assigned identifier for this location.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="StateProvinceId" type="sif:StateProvinceIdType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The state-assigned identifier for this location.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ParentChargedLocationInfoRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A ChargedLocationInfo instance could be related to another ChargedLocationInfo. This element will help create that relation.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SchoolInfoRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The RefId of a corresponding SchoolInfo object.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="AddressList" type="sif:AddressListType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>This element has the ChargedLocationInfo address information.</xs:documentation>
+				</xs:annotation>
+				<xs:unique name="AddressListKey7">
+					<xs:selector xpath="./sif:Address"/>
+					<xs:field xpath="@Type"/>
+					<xs:field xpath="@Role"/>
+				</xs:unique>
+			</xs:element>
+			<xs:element name="PhoneNumberList" type="sif:PhoneNumberListType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The location's phone numbers.</xs:documentation>
+				</xs:annotation>
+				<xs:unique name="PhoneNumberListKey8">
+					<xs:selector xpath="./sif:PhoneNumber"/>
+					<xs:field xpath="@Type"/>
+				</xs:unique>
+			</xs:element>
+			<xs:element name="SIF_Metadata" type="sif:SIF_MetadataType" nillable="true" minOccurs="0"/>
+			<xs:element name="SIF_ExtendedElements" type="sif:SIF_ExtendedElementsType" nillable="true" minOccurs="0">
+				<xs:unique name="SIF_ExtendedElementsKey73">
+					<xs:selector xpath="./sif:SIF_ExtendedElement"/>
+					<xs:field xpath="@Name"/>
+				</xs:unique>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="RefId" type="sif:RefIdType" use="required">
+			<xs:annotation>
+				<xs:documentation>The SIF unique identifier for the location.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="ChargedLocationInfo" type="sif:ChargedLocationInfoType">
+		<xs:unique name="ChargedLocationInfoKey1">
+			<xs:selector xpath="."/>
+			<xs:field xpath="@RefId"/>
+		</xs:unique>
+	</xs:element>
+	<!--PaymentReceipt-->
+	<xs:complexType name="PaymentReceiptType">
+		<xs:annotation>
+			<xs:documentation>
+        This object complements the Invoice object, and contains information about the payment of a Invoice object.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="TransactionType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Type of transaction.</xs:documentation>
+				</xs:annotation>
+				<xs:simpleType>
+					<xs:restriction base="xs:token">
+						<xs:enumeration value="GL receipt"/>
+						<xs:enumeration value="GL payment"/>
+						<xs:enumeration value="Creditor receipt"/>
+						<xs:enumeration value="Creditor payment"/>
+						<xs:enumeration value="Debtor receipt"/>
+						<xs:enumeration value="Debtor payment"/>
+					</xs:restriction>
+				</xs:simpleType>
+			</xs:element>
+			<xs:element name="InvoiceRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A pointer back to the Invoice object corresponding to this payment. Is omitted for general ledger transactions, creditor receipts and debtor payments.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="VendorInfoRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A pointer back to the vendor associated with the Invoice object, if applicable.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="DebtorRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A pointer back to the debtor associated with the Invoice object, if applicable.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="PurchaseOrderRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A pointer back to the PurchaseOrder object associated with the Invoice object, if applicable.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ChargedLocationInfoRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Id of the location billed for this transaction.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TransactionDate" type="xs:date" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Date transaction was made.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ReceivedAmount" minOccurs="0">
+				<xs:complexType>
+					<xs:annotation>
+						<xs:documentation>Amount received.</xs:documentation>
+					</xs:annotation>
+					<xs:simpleContent>
+						<xs:extension base="sif:MonetaryAmountType">
+							<xs:attribute name="Type" use="required">
+								<xs:simpleType>
+									<xs:restriction base="xs:token">
+										<xs:enumeration value="Debit"/>
+										<xs:enumeration value="Credit"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:attribute>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="ReceivedTransactionId" type="xs:normalizedString" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Memo transaction Id from other vendor software.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="FinancialAccountRefIdList" nillable="true" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="FinancialAccountRefId" type="sif:IdRefType" minOccurs="0" maxOccurs="unbounded">
+							<xs:annotation>
+								<xs:documentation>GUID for the FinancialAccount associated with this payment.</xs:documentation>
+							</xs:annotation>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="TransactionDescription" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Description of the transaction.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TaxRate" type="xs:decimal" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Rate of tax included in the billed amount.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TaxAmount" type="sif:MonetaryAmountType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Amount of tax included in the billed amount.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TransactionMethod" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Method through which transaction was made (e.g. cash, credit card). If a receipt is made using two receipt methods (e.g. $20 in cash and $80 on credit), two PaymentReceipt objects are expected to be created, rather than a single object with mixed receipt method.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ChequeNumber" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The cheque number issued, if paying creditors by cheque.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TransactionNote" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Note about the receipt or payment.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="AccountingPeriod" type="sif:LocalIdType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The accounting period against which the transaction is billed.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SIF_Metadata" type="sif:SIF_MetadataType" nillable="true" minOccurs="0"/>
+			<xs:element name="SIF_ExtendedElements" type="sif:SIF_ExtendedElementsType" nillable="true" minOccurs="0">
+				<xs:unique name="SIF_ExtendedElementsKey74">
+					<xs:selector xpath="./sif:SIF_ExtendedElement"/>
+					<xs:field xpath="@Name"/>
+				</xs:unique>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="RefId" type="sif:RefIdType" use="required">
+			<xs:annotation>
+				<xs:documentation>GUID for this payment or receipt. The application that owns this object is responsible for generating this unique Id.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="PaymentReceipt" type="sif:PaymentReceiptType">
+		<xs:unique name="PaymentReceiptKey1">
+			<xs:selector xpath="."/>
+			<xs:field xpath="@RefId"/>
+		</xs:unique>
+	</xs:element>
+	<!--PurchaseOrder-->
+	<xs:complexType name="PurchaseOrderType">
+		<xs:annotation>
+			<xs:documentation>
+        This object provides information down to the line item level for purchase orders.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="FormNumber" type="xs:normalizedString" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Purchase order number.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="VendorInfoRefId" type="sif:IdRefType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>This object references the VendorInfo object being billed.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ChargedLocationInfoRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The location Id for this purchasing activity.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="EmployeePersonalRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The employee Id for the originator of this purchasing activity.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="PurchasingItems" minOccurs="0">
+				<xs:complexType>
+					<xs:sequence>
+						<xs:element name="PurchasingItem" minOccurs="0" maxOccurs="unbounded">
+							<xs:complexType>
+								<xs:sequence>
+									<xs:element name="ItemNumber" type="xs:normalizedString" nillable="true" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>Vendor item number.</xs:documentation>
+										</xs:annotation>
+									</xs:element>
+									<xs:element name="ItemDescription" type="xs:normalizedString" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>Description of the item.</xs:documentation>
+										</xs:annotation>
+									</xs:element>
+									<xs:element name="Quantity" type="xs:normalizedString" nillable="true" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>Quantity ordered.</xs:documentation>
+										</xs:annotation>
+									</xs:element>
+									<xs:element name="UnitCost" type="sif:MonetaryAmountType" nillable="true" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>Unit cost of the item.</xs:documentation>
+										</xs:annotation>
+									</xs:element>
+									<xs:element name="QuantityDelivered" type="xs:normalizedString" nillable="true" minOccurs="0">
+										<xs:annotation>
+											<xs:documentation>Quantity delivered to date.</xs:documentation>
+										</xs:annotation>
+									</xs:element>
+									<xs:element name="ExpenseAccounts" nillable="true" minOccurs="0">
+										<xs:complexType>
+											<xs:sequence>
+												<xs:element name="ExpenseAccount" nillable="true" minOccurs="0">
+													<xs:complexType>
+														<xs:sequence>
+															<xs:element name="AccountCode" type="xs:token" minOccurs="0">
+																<xs:annotation>
+																	<xs:documentation>Account code charged to this item.</xs:documentation>
+																</xs:annotation>
+															</xs:element>
+															<xs:element name="Amount" type="sif:MonetaryAmountType" minOccurs="0">
+																<xs:annotation>
+																	<xs:documentation>Amount charged to this account.</xs:documentation>
+																</xs:annotation>
+															</xs:element>
+															<xs:element name="FinancialAccountRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+																<xs:annotation>
+																	<xs:documentation>Account being charged.</xs:documentation>
+																</xs:annotation>
+															</xs:element>
+															<xs:element name="AccountingPeriod" type="sif:LocalIdType" nillable="true" minOccurs="0">
+																<xs:annotation>
+																	<xs:documentation>Accounting period for the charge.</xs:documentation>
+																</xs:annotation>
+															</xs:element>
+														</xs:sequence>
+													</xs:complexType>
+												</xs:element>
+											</xs:sequence>
+										</xs:complexType>
+									</xs:element>
+								</xs:sequence>
+							</xs:complexType>
+						</xs:element>
+					</xs:sequence>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="CreationDate" type="xs:date" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Date on which purchase order was created.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TaxRate" type="xs:decimal" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Rate of tax included in the billed amount.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TaxAmount" type="sif:MonetaryAmountType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Amount of tax included in the billed amount.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="AmountDelivered" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Amount of items delivered to date.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="UpdateDate" type="xs:date" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Date on which the object was last updated.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="FullyDelivered" type="sif:AUCodeSetsYesOrNoCategoryType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Method through which transaction was made (e.g. cash, credit card). If a receipt is made using two receipt methods (e.g. $20 in cash and $80 on credit), two PaymentReceipt objects are expected to be created, rather than a single object with mixed receipt method.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SIF_Metadata" type="sif:SIF_MetadataType" nillable="true" minOccurs="0"/>
+			<xs:element name="SIF_ExtendedElements" type="sif:SIF_ExtendedElementsType" nillable="true" minOccurs="0">
+				<xs:unique name="SIF_ExtendedElementsKey75">
+					<xs:selector xpath="./sif:SIF_ExtendedElement"/>
+					<xs:field xpath="@Name"/>
+				</xs:unique>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="RefId" type="sif:RefIdType" use="required">
+			<xs:annotation>
+				<xs:documentation>Transaction GUID for this purchasing activity. The application that owns this object and is responsible for generating this unique Id.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="PurchaseOrder" type="sif:PurchaseOrderType">
+		<xs:unique name="PurchaseOrderKey1">
+			<xs:selector xpath="."/>
+			<xs:field xpath="@RefId"/>
+		</xs:unique>
+	</xs:element>
+	<!--VendorInfo-->
+	<xs:complexType name="VendorInfoType">
+		<xs:annotation>
+			<xs:documentation>
+        This object contains basic vendor information (commonly known as creditors).</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Name" type="xs:normalizedString" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Name of the vendor.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ContactInfo" type="sif:ContactInfoType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Contact information.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="CustomerId" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Account number or other Id.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ABN" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Australian Business Number.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="RegisteredForGST" type="sif:AUCodeSetsYesOrNoCategoryType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The vendor is registered to collect GST.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="PaymentTerms" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The vendors payment terms (typically expressed as number of days e.g. 14 days).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="BPay" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>BPay Id.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="BSB" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Vendor's BSB number.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="AccountNumber" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Vendor's account number.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="AccountName" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Vendor's account name.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SIF_Metadata" type="sif:SIF_MetadataType" nillable="true" minOccurs="0"/>
+			<xs:element name="SIF_ExtendedElements" type="sif:SIF_ExtendedElementsType" nillable="true" minOccurs="0">
+				<xs:unique name="SIF_ExtendedElementsKey76">
+					<xs:selector xpath="./sif:SIF_ExtendedElement"/>
+					<xs:field xpath="@Name"/>
+				</xs:unique>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="RefId" type="sif:RefIdType" use="required">
+			<xs:annotation>
+				<xs:documentation>Vendor Id.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="VendorInfo" type="sif:VendorInfoType">
+		<xs:unique name="VendorInfoKey1">
+			<xs:selector xpath="."/>
+			<xs:field xpath="@RefId"/>
+		</xs:unique>
+	</xs:element>
+	<!--Journal-->
+	<xs:complexType name="JournalType">
+		<xs:annotation>
+			<xs:documentation>This object contains is used to adjust balances between accounts. It is typically used to correct chart of account coding errors (e.g. created invoices for parents against the maths chart of account code when it should have been English).</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="DebitFinancialAccountRefId" type="sif:IdRefType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>RefId of account to debit.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="CreditFinancialAccountRefId" type="sif:IdRefType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>RefId of account to credit.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="OriginatingTransactionRefId" nillable="true" minOccurs="0">
+				<xs:complexType>
+					<xs:annotation>
+						<xs:documentation>RefId of the originating transaction which requires adjustment. This could be an Invoice, PaymentReceipt or PurchaseOrder.</xs:documentation>
+					</xs:annotation>
+					<xs:simpleContent>
+						<xs:extension base="sif:IdRefTypeOrEmpty">
+							<xs:attribute name="SIF_RefObject" use="required">
+								<xs:simpleType>
+									<xs:restriction base="xs:token">
+										<xs:enumeration value="Invoice"/>
+										<xs:enumeration value="PaymentReceipt"/>
+										<xs:enumeration value="PurchaseOrder"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:attribute>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="Amount" type="sif:MonetaryAmountType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Amount to transfer between the two accounts.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="GSTCodeOriginal" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Original GST code for journal transfer (if required).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="GSTCodeReplacement" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Replacement GST code for journal transfer (if required).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Note" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Note about the journal.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="CreatedDate" type="xs:date" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Date on which journal was created.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ApprovedDate" type="xs:date" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Date on which journal was approved.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="CreatedBy" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Authority or person who created the journal.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ApprovedBy" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Authority or person who approved the journal.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="FinancialClassificationRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Financial classification (ledger) to which the accounts belong.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SIF_Metadata" type="sif:SIF_MetadataType" nillable="true" minOccurs="0"/>
+			<xs:element name="SIF_ExtendedElements" type="sif:SIF_ExtendedElementsType" nillable="true" minOccurs="0">
+				<xs:unique name="SIF_ExtendedElementsKey77">
+					<xs:selector xpath="./sif:SIF_ExtendedElement"/>
+					<xs:field xpath="@Name"/>
+				</xs:unique>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="RefId" type="sif:RefIdType" use="required">
+			<xs:annotation>
+				<xs:documentation>Journal Id.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="Journal" type="sif:JournalType">
+		<xs:unique name="JournalKey1">
+			<xs:selector xpath="."/>
+			<xs:field xpath="@RefId"/>
+		</xs:unique>
+	</xs:element>
+	<!--Debtor-->
+	<xs:complexType name="DebtorType">
+		<xs:annotation>
+			<xs:documentation>
+        This object contains is used to capture general information about debtors.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="BilledEntity" minOccurs="0">
+				<xs:complexType>
+					<xs:annotation>
+						<xs:documentation>Id of the entity referred to by this object (e.g., student, employee, organization).</xs:documentation>
+					</xs:annotation>
+					<xs:simpleContent>
+						<xs:extension base="sif:IdRefTypeOrEmpty">
+							<xs:attribute name="SIF_RefObject" use="required">
+								<xs:annotation>
+									<xs:documentation>SIF object referenced by BilledEntity.</xs:documentation>
+								</xs:annotation>
+								<xs:simpleType>
+									<xs:restriction base="xs:token">
+										<xs:enumeration value="StudentContactPersonal"/>
+										<xs:enumeration value="VendorInfo"/>
+									</xs:restriction>
+								</xs:simpleType>
+							</xs:attribute>
+						</xs:extension>
+					</xs:simpleContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="AddressList" type="sif:AddressListType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Addresses of the debtor to be used for billing. These addresses override any addresses found in the Billed Entity.</xs:documentation>
+				</xs:annotation>
+				<xs:unique name="AddressListKey8">
+					<xs:selector xpath="./sif:Address"/>
+					<xs:field xpath="@Type"/>
+					<xs:field xpath="@Role"/>
+				</xs:unique>
+			</xs:element>
+			<xs:element name="BillingName" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Name of the entity to be used for billing (e.g. company name rather than individual name).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="BillingNote" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Note about billing requirements.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Discount" type="xs:decimal" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Any discount amount applicable to this debtor (e.g. family discount for scholarship, number of children enrolled). Is a percentage.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SIF_Metadata" type="sif:SIF_MetadataType" nillable="true" minOccurs="0"/>
+			<xs:element name="SIF_ExtendedElements" type="sif:SIF_ExtendedElementsType" nillable="true" minOccurs="0">
+				<xs:unique name="SIF_ExtendedElementsKey78">
+					<xs:selector xpath="./sif:SIF_ExtendedElement"/>
+					<xs:field xpath="@Name"/>
+				</xs:unique>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="RefId" type="sif:RefIdType" use="required">
+			<xs:annotation>
+				<xs:documentation>Debtor Id.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="Debtor" type="sif:DebtorType">
+		<xs:unique name="DebtorKey1">
+			<xs:selector xpath="."/>
+			<xs:field xpath="@RefId"/>
+		</xs:unique>
+	</xs:element>
 	<!--StudentAttendanceTimeList-->
 	<xs:complexType name="StudentAttendanceTimeListType">
 		<xs:annotation>
-			<xs:documentation>This object provides more detail about the attendance spans for a single student during the day: it provides more detailed information than the single TimeIn and TimeOut elements in StudentDailyAttendance.</xs:documentation>
+			<xs:documentation>This object provides more detail about the attendance spans for a single student during the
+				day: it provides more detailed information than the single TimeIn and TimeOut elements in
+				StudentDailyAttendance.</xs:documentation>
 		</xs:annotation>
 		<xs:sequence>
-			<xs:element name="StudentPersonalRefId" type="sif:IdRefType">
+			<xs:element name="StudentPersonalRefId" type="sif:IdRefType" minOccurs="0">
 				<xs:annotation>
 					<xs:documentation>The ID (GUID) of the student for whom this attendance information is being reported.</xs:documentation>
 				</xs:annotation>
 			</xs:element>
-			<xs:element name="SchoolInfoRefId" type="sif:IdRefType">
+			<xs:element name="SchoolInfoRefId" type="sif:IdRefType" minOccurs="0">
 				<xs:annotation>
 					<xs:documentation>The ID (GUID) of the school for which this attendance information is being reported.</xs:documentation>
 				</xs:annotation>
 			</xs:element>
-			<xs:element name="Date" type="xs:date">
+			<xs:element name="Date" type="xs:date" minOccurs="0">
 				<xs:annotation>
-					<xs:documentation>The calendar date to which this attendance information relates.</xs:documentation>
+					<xs:documentation>The calendar date to which this attendance reporting period relates.</xs:documentation>
 				</xs:annotation>
 			</xs:element>
-			<xs:element ref="sif:SchoolYear"/>
-			<xs:element name="AttendanceTimes">
+			<xs:element ref="sif:SchoolYear" minOccurs="0"/>
+			<xs:element name="AttendanceTimes" minOccurs="0">
 				<xs:complexType>
 					<xs:sequence>
-						<xs:element name="AttendanceTime" maxOccurs="unbounded">
+						<xs:element name="AttendanceTime" minOccurs="0" maxOccurs="unbounded">
 							<xs:complexType>
 								<xs:sequence>
-									<xs:element ref="sif:AttendanceCode"/>
-									<xs:element name="AttendanceStatus" type="sif:AUCodeSetsAttendanceStatusType">
+									<xs:element ref="sif:AttendanceCode" minOccurs="0"/>
+									<xs:element name="AttendanceStatus" type="sif:AUCodeSetsAttendanceStatusType" minOccurs="0">
 										<xs:annotation>
 											<xs:documentation>Approved or Unapproved status of this attendance code.</xs:documentation>
 										</xs:annotation>
 									</xs:element>
-									<xs:element name="StartTime" type="xs:time">
+									<xs:element name="StartTime" type="xs:time" minOccurs="0">
 										<xs:annotation>
 											<xs:documentation>The start of this particular time span.</xs:documentation>
 										</xs:annotation>
 									</xs:element>
-									<xs:element name="EndTime" type="xs:time">
+									<xs:element name="EndTime" type="xs:time" minOccurs="0">
 										<xs:annotation>
 											<xs:documentation>The end of this particular time span.</xs:documentation>
 										</xs:annotation>
 									</xs:element>
-									<xs:element name="AbsenceValue" nillable="true" minOccurs="0">
+									<xs:element name="DurationValue" nillable="true" minOccurs="0">
 										<xs:simpleType>
 											<xs:restriction base="xs:decimal">
 												<xs:annotation>
-													<xs:documentation>The amount of absence represented by AttendanceCode, up to three decimal places.</xs:documentation>
+													<xs:documentation>The amount of absence represented by AttendanceCode, up to three decimal places. May be
+				greater than 1.0.</xs:documentation>
 												</xs:annotation>
 												<xs:minInclusive value="0"/>
-												<xs:maxInclusive value="1"/>
 											</xs:restriction>
 										</xs:simpleType>
 									</xs:element>
@@ -11550,24 +12880,181 @@
 			</xs:element>
 			<xs:element name="SIF_Metadata" type="sif:SIF_MetadataType" nillable="true" minOccurs="0"/>
 			<xs:element name="SIF_ExtendedElements" type="sif:SIF_ExtendedElementsType" nillable="true" minOccurs="0">
-				<xs:key name="SIF_ExtendedElementsKey70">
+				<xs:unique name="SIF_ExtendedElementsKey79">
 					<xs:selector xpath="./sif:SIF_ExtendedElement"/>
 					<xs:field xpath="@Name"/>
-				</xs:key>
+				</xs:unique>
 			</xs:element>
 		</xs:sequence>
 		<xs:attribute name="RefId" type="sif:RefIdType" use="required">
 			<xs:annotation>
-				<xs:documentation>The ID (GUID) assigned to uniquely identify this attendance record.</xs:documentation>
+				<xs:documentation>The ID (GUID) that uniquely identifies the instance of the object.</xs:documentation>
 			</xs:annotation>
 		</xs:attribute>
 	</xs:complexType>
 	<xs:element name="StudentAttendanceTimeList" type="sif:StudentAttendanceTimeListType">
-		<xs:key name="StudentAttendanceTimeListKey1">
+		<xs:unique name="StudentAttendanceTimeListKey1">
 			<xs:selector xpath="."/>
 			<xs:field xpath="@RefId"/>
-		</xs:key>
+		</xs:unique>
 	</xs:element>
+	<!--GradingAssignment-->
+	<xs:complexType name="GradingAssignmentType">
+		<xs:annotation>
+			<xs:documentation>
+        This object provides information about a particular assignment, allows applications to synchronize each other's assignment tables, gathers the definition for a GradingAssignmentScore object, etc.  
+      </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="TeachingGroupRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The GUID for the TeachingGroup object in which this assignment has been set.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SchoolInfoRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The Id (GUID) that uniquely identifies the School in which this assignment has been set.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="GradingCategory" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>A particular grading category for the assignment, used to provide grouping and type information.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Description" type="xs:normalizedString" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The text-based description of the assignment.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="PointsPossible" type="xs:unsignedInt" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The points possible on the assignment.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="CreateDate" type="xs:date" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Creation date of the assignment.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="DueDate" type="xs:date" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Date the assignment is due.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Weight" type="xs:decimal" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The weight of the assignment.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="MaxAttemptsAllowed" type="xs:integer" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>How many attempts the student is allowed on the assignment (applicable particularly to online activities).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="DetailedDescriptionURL" type="xs:anyURI" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The location of the document that describes the assignment. If Type is PDF, this element will contain the Base64 encoding of the entire document. Preferred against DetailedDescriptionBinary for online assessment.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="DetailedDescriptionBinary" type="xs:base64Binary" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The Base64 encoding of a document (e.g. PDF) describing the assignment.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SIF_Metadata" type="sif:SIF_MetadataType" nillable="true" minOccurs="0"/>
+			<xs:element name="SIF_ExtendedElements" type="sif:SIF_ExtendedElementsType" nillable="true" minOccurs="0">
+				<xs:unique name="SIF_ExtendedElementsKey80">
+					<xs:selector xpath="./sif:SIF_ExtendedElement"/>
+					<xs:field xpath="@Name"/>
+				</xs:unique>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="RefId" type="sif:RefIdType" use="required">
+			<xs:annotation>
+				<xs:documentation>A GUID that identifies an instance of this object. </xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="GradingAssignment" type="sif:GradingAssignmentType">
+		<xs:unique name="GradingAssignmentKey1">
+			<xs:selector xpath="."/>
+			<xs:field xpath="@RefId"/>
+		</xs:unique>
+	</xs:element>
+	<!--GradingAssignmentScore-->
+	<xs:complexType name="GradingAssignmentScoreType">
+		<xs:annotation>
+			<xs:documentation>
+        This object provides score information about a particular assignment. 
+      </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="StudentPersonalRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The GUID for the student whose score this is.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="StudentPersonalLocalId" type="sif:LocalIdType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The Local Id for the student whose score this is.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TeachingGroupRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The GUID for the TeachingGroup object in which this assignment has been set.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SchoolInfoRefId" type="sif:IdRefType" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The Id (GUID) that uniquely identifies the School in which this assignment has been set.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="GradingAssignmentRefId" type="sif:IdRefType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The grading assignment for which this is a score.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ScorePoints" type="xs:unsignedInt" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The score represented as points. Conditionally required that one or more of ScorePoints, ScorePercent or ScoreLetter must be filled in. For online assignments, ScorePoints should be used to the exclusion of other scores.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ScorePercent" type="xs:decimal" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The score represented as a percent. Conditionally required that one or more of ScorePoints, ScorePercent or ScoreLetter must be filled in.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ScoreLetter" type="xs:token" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The score represented as a letter grade. Conditionally required that one or more of ScorePoints, ScorePercent or ScoreLetter must be filled in.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ScoreDescription" type="xs:normalizedString" nillable="true" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Text description of the score.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SIF_Metadata" type="sif:SIF_MetadataType" nillable="true" minOccurs="0"/>
+			<xs:element name="SIF_ExtendedElements" type="sif:SIF_ExtendedElementsType" nillable="true" minOccurs="0">
+				<xs:unique name="SIF_ExtendedElementsKey81">
+					<xs:selector xpath="./sif:SIF_ExtendedElement"/>
+					<xs:field xpath="@Name"/>
+				</xs:unique>
+			</xs:element>
+		</xs:sequence>
+		<xs:attribute name="RefId" type="sif:RefIdType" use="required">
+			<xs:annotation>
+				<xs:documentation>A GUID that identifies an instance of this object.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:element name="GradingAssignmentScore" type="sif:GradingAssignmentScoreType">
+		<xs:unique name="GradingAssignmentScoreKey1">
+			<xs:selector xpath="."/>
+			<xs:field xpath="@RefId"/>
+		</xs:unique>
+	</xs:element>
+	
 	<!-- Adding Collections Here -->
 	<xs:complexType name="ActivityCollectionType">
 		<xs:sequence>
@@ -11990,6 +13477,72 @@
 		</xs:sequence>
 	</xs:complexType>
 	<xs:element name="EquipmentInfos" type="sif:EquipmentInfoCollectionType"/>
+	<xs:complexType name="GradingAssignmentCollectionType">
+		<xs:sequence>
+			<xs:element name="GradingAssignment" type="sif:GradingAssignmentType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="GradingAssignments" type="sif:GradingAssignmentCollectionType"/>
+	<xs:complexType name="GradingAssignmentScoreCollectionType">
+		<xs:sequence>
+			<xs:element name="GradingAssignmentScore" type="sif:GradingAssignmentScoreType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="GradingAssignmentScores" type="sif:GradingAssignmentScoreCollectionType"/>
+	<xs:complexType name="InvoiceCollectionType">
+		<xs:sequence>
+			<xs:element name="Invoice" type="sif:InvoiceType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="Invoices" type="sif:InvoiceCollectionType"/>
+	<xs:complexType name="FinancialAccountCollectionType">
+		<xs:sequence>
+			<xs:element name="FinancialAccount" type="sif:FinancialAccountType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="FinancialAccounts" type="sif:FinancialAccountCollectionType"/>
+	<xs:complexType name="FinancialClassificationCollectionType">
+		<xs:sequence>
+			<xs:element name="FinancialClassification" type="sif:FinancialClassificationType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="FinancialClassifications" type="sif:FinancialClassificationCollectionType"/>
+	<xs:complexType name="ChargedLocationInfoCollectionType">
+		<xs:sequence>
+			<xs:element name="ChargedLocationInfo" type="sif:ChargedLocationInfoType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="ChargedLocationInfos" type="sif:ChargedLocationInfoCollectionType"/>
+	<xs:complexType name="PaymentReceiptCollectionType">
+		<xs:sequence>
+			<xs:element name="PaymentReceipt" type="sif:PaymentReceiptType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="PaymentReceipts" type="sif:PaymentReceiptCollectionType"/>
+	<xs:complexType name="PurchaseOrderCollectionType">
+		<xs:sequence>
+			<xs:element name="PurchaseOrder" type="sif:PurchaseOrderType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="PurchaseOrders" type="sif:PurchaseOrderCollectionType"/>
+	<xs:complexType name="VendorInfoCollectionType">
+		<xs:sequence>
+			<xs:element name="VendorInfo" type="sif:VendorInfoType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="VendorInfos" type="sif:VendorInfoCollectionType"/>
+	<xs:complexType name="JournalCollectionType">
+		<xs:sequence>
+			<xs:element name="Journal" type="sif:JournalType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="Journals" type="sif:JournalCollectionType"/>
+	<xs:complexType name="DebtorCollectionType">
+		<xs:sequence>
+			<xs:element name="Debtor" type="sif:DebtorType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="Debtors" type="sif:DebtorCollectionType"/>
 	<!-- Code Set enumerations -->
 	<xs:simpleType name="InfrastructureStatusCodeType">
 		<xs:restriction base="xs:token">
@@ -12714,6 +14267,11 @@
 					<xs:documentation>Absent - General</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
+			<xs:enumeration value="102">
+				<xs:annotation>
+					<xs:documentation>Absent - Unjustified</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
 			<xs:enumeration value="111">
 				<xs:annotation>
 					<xs:documentation>Late arrival at School</xs:documentation>
@@ -12897,6 +14455,11 @@
 			<xs:enumeration value="612">
 				<xs:annotation>
 					<xs:documentation>Study Leave</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="613">
+				<xs:annotation>
+					<xs:documentation>Shared enrolment</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="700">
@@ -15637,7 +17200,7 @@
 			</xs:enumeration>
 			<xs:enumeration value="Pri/Sec">
 				<xs:annotation>
-					<xs:documentation>Primary/Seconday Combined</xs:documentation>
+					<xs:documentation>Primary/Secondary Combined</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="Prim">
@@ -15731,6 +17294,11 @@
 			<xs:enumeration value="0124A">
 				<xs:annotation>
 					<xs:documentation>Alternate Shipping address</xs:documentation>
+				</xs:annotation>
+			</xs:enumeration>
+			<xs:enumeration value="0125">
+				<xs:annotation>
+					<xs:documentation>Billig address</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="0765">
@@ -28988,7 +30556,7 @@
 			</xs:enumeration>
 			<xs:enumeration value="2">
 				<xs:annotation>
-					<xs:documentation>Torres Strait Islander but Not Aboriginal Origin</xs:documentation>
+					<xs:documentation>Torres Strait Islander but not Aboriginal Origin</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="3">
@@ -28998,7 +30566,7 @@
 			</xs:enumeration>
 			<xs:enumeration value="4">
 				<xs:annotation>
-					<xs:documentation>Neither  Aboriginal or Torres Strait Origin</xs:documentation>
+					<xs:documentation>Neither Aboriginal or Torres Strait Origin</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="9">
@@ -29326,7 +30894,7 @@
 			</xs:enumeration>
 			<xs:enumeration value="208">
 				<xs:annotation>
-					<xs:documentation>East Timorese in Portugal,Macau or Mozambique</xs:documentation>
+					<xs:documentation>East Timorese in Portugal, Macau or Mozambique</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="209">
@@ -30260,22 +31828,22 @@
 			</xs:enumeration>
 			<xs:enumeration value="2">
 				<xs:annotation>
-					<xs:documentation>Other business manages, arts/media/sportspersons and associate professionals</xs:documentation>
+					<xs:documentation>Other business managers, arts/media/sportspersons and associate professionals</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="3">
 				<xs:annotation>
-					<xs:documentation>Tradsesmen/women, clerks and skilled office, sales and service staff</xs:documentation>
+					<xs:documentation>Tradesmen/women, clerks and skilled office, sales and service staff</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="4">
 				<xs:annotation>
-					<xs:documentation>Machine Operators, hospitality staff, assistants, labourers and related workers</xs:documentation>
+					<xs:documentation>Machine operators, hospitality staff, assistants, labourers and related workers</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="8">
 				<xs:annotation>
-					<xs:documentation>Out of employed work for 12 months or more  (If less use previous occupational group.)</xs:documentation>
+					<xs:documentation>Out of employed work for 12 months or more (If less use previous occupational group.)</xs:documentation>
 				</xs:annotation>
 			</xs:enumeration>
 			<xs:enumeration value="9">
