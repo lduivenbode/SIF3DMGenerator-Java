@@ -1,9 +1,10 @@
 <!--
-		SIF Implementation Specification (Australia) 1.4 (August 18, 2015) Infrastructure Version: 3.x REST v2
+		SIF Implementation Specification (Australia) 1.4 (September 3, 2015) Infrastructure Version: 3.x REST v2
 	-->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:sif="http://www.sifassociation.org/au/datamodel/1.4" targetNamespace="http://www.sifassociation.org/au/datamodel/1.4" elementFormDefault="qualified">
 	<xs:import namespace="http://www.w3.org/XML/1998/namespace" schemaLocation="imports/xml/xml.xsd"/>
-	<!--Version 1.4/3.x v0.1 Updated August, 2015 for ACT Project - includes Finance and Gradebook objects -->
+	<!--Version 1.4/3.x v0.2 Updated September 3, 2015 for ACT Project - includes Finance and Gradebook objects -->
+	<!-- Update - GUID Patterning Corrected-->
 	<!--Infrastructure Common Elements-->
 	<!--SIF_ExtendedElements-->
 	<xs:complexType name="SIF_ExtendedElementsType">
@@ -13054,7 +13055,6 @@
 			<xs:field xpath="@RefId"/>
 		</xs:unique>
 	</xs:element>
-	
 	<!-- Adding Collections Here -->
 	<xs:complexType name="ActivityCollectionType">
 		<xs:sequence>
@@ -35905,7 +35905,8 @@
 					<xs:annotation>
 						<xs:documentation>SIF format for a GUID.</xs:documentation>
 					</xs:annotation>
-					<xs:pattern value="[0-9A-F]{32}"/>
+					<xs:pattern value="[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}"/>
+					<!-- <xs:pattern value="[0-9A-F]{32}"/> 2.x infrastructure-->
 				</xs:restriction>
 			</xs:simpleType>
 		</xs:restriction>
